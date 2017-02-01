@@ -34,6 +34,7 @@ const
   TABLE_3_SIZE          = 256;
   TABLE_4_SIZE          = 256;
   TABLE_5_SIZE          = 1024;
+  TABLE_6_SIZE          = 1024;
 
 var
   fd0         : sizeint;
@@ -151,6 +152,7 @@ var
   {$I ./dict_3.pasinc}
   {$I ./dict_4.pasinc}
   {$I ./dict_5.pasinc}
+  {$I ./dict_6.pasinc}
   {$I ./dict.pasinc}
   pwcfile  : file of byte;
   passchars: string;
@@ -469,6 +471,7 @@ else
     3: generate_password_from_table(@pass_table_3, (RANDOM_DATA_SIZE div 2), TABLE_3_SIZE);
     4: generate_password_from_table(@pass_table_4, (RANDOM_DATA_SIZE div 2), TABLE_4_SIZE);
     5: generate_password_from_table(@pass_table_5, (RANDOM_DATA_SIZE div 2), TABLE_5_SIZE);
+    6: generate_password_from_table(@pass_table_6, (RANDOM_DATA_SIZE div 2), TABLE_6_SIZE);
 
     otherwise
       fatal_error('Invalid dictionary ID.');
