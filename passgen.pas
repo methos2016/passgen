@@ -24,11 +24,12 @@ const
   dl = sl+sl;
 
 const
-  PROGRAM_OPTIONS_COUNT = 5;
+  PROGRAM_OPTIONS_COUNT = 6;
   PROGRAM_NAME          = 'passgen';
   PROGRAM_TASK          = 'generate random passwords.';
+  WORD_SEPARATOR        = {$I %WORD_SEPARATOR%};
   RANDOM_DATA_SIZE      = 8192;
-  DICT_COUNT            = 5;
+  DICT_COUNT            = 6;
   TABLE_1_SIZE          = 256;
   TABLE_2_SIZE          = 256;
   TABLE_3_SIZE          = 256;
@@ -88,7 +89,7 @@ end;
 
 procedure show_header();
 begin
-  Write({$I %BK_DATE%},sl);
+  Write({$I %LOCAL_DATE%},sl);
   Write(PROGRAM_NAME,' is a program to ',PROGRAM_TASK,dl);
 
   Write('SHA256: ',{$I %SOURCE_HASH%},dl);
@@ -105,9 +106,10 @@ begin
 
   Write('Additional options:',sl);
   Write('  --quiet,                                       -q: Keeps output to a minimum. Only show generated password.',sl);
-  Write('  --word,                                        -w: It is a word dictionary, separate each word with a space.',sl );
+  Write('  --word,                                        -w: It is a word dictionary, separate each word with a space.',sl);
   Write('  --hex-to-word <hex_value> <dict_index>,      -h2w: Convert hexadecimal number to word(s).',sl);
   Write('  --word-to-hex <word1:word2...> <dict_index>, -w2h: Convert word(s) to hexadecimal number.',sl);
+  Write('  --writing-mode                                 -p: Prints password character by character. Press ENTER to show next character.',sl);
   halt(-1);
 end;
 
@@ -131,7 +133,7 @@ var
   lpp0: sizeint;
 begin
   // generate sequence of chars
-  for lpp0 := 32 to 128-1 do
+  for lpp0 := $20 to $7E do
     Write(char(lpp0));
 
   halt(0);
@@ -162,7 +164,8 @@ var
                                                                  (long:'--quiet'; short:'-q'; proc:@set_quiet_mode; present:false),
                                                                  (long:'--word'; short:'-w'; proc:nil; present:false),
                                                                  (long:'--hex-to-word'; short:'-h2w'; proc:nil; present:false),
-                                                                 (long:'--word-to-hex'; short:'-w2h'; proc:nil; present:false)
+                                                                 (long:'--word-to-hex'; short:'-w2h'; proc:nil; present:false),
+                                                                 (long:'--writing-mode'; short:'-p'; proc:nil; present:false)
                                                                );
 
 
@@ -350,9 +353,10 @@ procedure generate_password_from_table(table: pstring; maxindex: sizeint; table_
 // for this reason TABLE_SIZE must be bit aligned
 var
   lpp0    : sizeint;
-  passlen : sizeint;
-  password: string;
-  limit   : word;
+  passlen : sizeint; // length of password
+  password: string;  // the password generated
+  union   : string;  // word separator
+  limit   : word;    // maximum possible array index bit mask, must be "bit aligned" (e.g.: %00001111, %00000011, %00111111, %11111111)
 begin
   passlen  := StrToInt(ParamStr(1));
 
@@ -365,8 +369,11 @@ begin
   begin
     if options[2].present then
     begin
+      union := WORD_SEPARATOR;
+
+
       if lpp0 < passlen-1 then
-        password := password+table[rdata[Random(maxindex)] and limit]+' '
+        password := password+table[rdata[Random(maxindex)] and limit]+union
       else
         password := password+table[rdata[Random(maxindex)] and limit];
     end
@@ -376,7 +383,23 @@ begin
     end;
   end;
 
-  WriteLn(password);
+
+  if not options[5].present then
+  begin
+    // write entire password at once
+    WriteLn(password);
+  end
+    else
+  begin
+    // display password char by char
+    for lpp0 := 0 to Length(password)-1 do
+    begin
+      Write(password[lpp0+1], ' --- chars left: ',Length(password)-lpp0-1);
+
+      ReadLn();
+    end;
+  end;
+
 
   if not quiet then
   begin

@@ -1,4 +1,3 @@
-BK_DATE=$(shell date +'%Y/%m/%d - %H:%M:%S %Z')
 NAME=passgen
 BIN=$(NAME)
 FPC=fpc
@@ -6,20 +5,24 @@ RELEASE_UNIT=-Mobjfpc -l -B -O3 -Sih -viewnh -Fu/usr/local/include/* -XMmain -Xs
 RELEASE=-Mobjfpc -l -B -O3 -OWAll -FW./bin/bm1NAKQStWvrNaqS.feedback -Sih -viewnh -Fu/usr/local/include/* -XMmain -Xs- -XS -XX -CX -C3- -Cg -Ci- -Co- -CO- -Cr- -Ct-
 RELEASE2=-Mobjfpc -l -B -O3 -OwAll -Fw./bin/bm1NAKQStWvrNaqS.feedback -Sih -viewnh -Fu/usr/local/include/* -XMmain -Xs -XS -XX -CX -C3- -Cg -Ci- -Co- -CO- -Cr- -Ct-
 DEBUG=-dDEBUG -Mobjfpc -l -O- -Sih -viewnh -Fu/usr/local/include/* -XMmain -Xs- -XS -XX -CX -g
+# program settings
+LOCAL_DATE=$(shell date +'%Y/%m/%d - %H:%M:%S %Z')
 SOURCE_HASH=$(shell sha256sum $(NAME).pas | grep -o '^[0-9a-fA-F]*')
+WORD_SEPARATOR=$(shell echo ' ')
+
+export LOCAL_DATE
+export SOURCE_HASH
+export WORD_SEPARATOR
 
 release:
 	@rm -rf ./bin && mkdir -p ./bin
-	@export BK_DATE="$(BK_DATE)" && \
-	export SOURCE_HASH="$(SOURCE_HASH)" && \
-		$(FPC) $(RELEASE) ./$(NAME).pas -o./bin/$(BIN) | tr -s '\n' && \
-		echo '--------------------------------------------------' && \
-		$(FPC) $(RELEASE2) ./$(NAME).pas -o./bin/$(BIN) | tr -s '\n'
+	@$(FPC) $(RELEASE) ./$(NAME).pas -o./bin/$(BIN)
+	@echo '--------------------------------------------------'
+	@$(FPC) $(RELEASE2) ./$(NAME).pas -o./bin/$(BIN)
 
 debug:
 	@rm -rf ./bin && mkdir -p ./bin
-	@export BK_DATE="$(BK_DATE)" && \
-		$(FPC) $(DEBUG) ./$(NAME).pas -o./bin/$(BIN)
+	@$(FPC) $(DEBUG) ./$(NAME).pas -o./bin/$(BIN)
 
 run:
 	@./bin/$(BIN) $(ARG)
@@ -32,8 +35,7 @@ install:
 	cp ./bin/$(BIN) /usr/local/bin
 
 source:
-	@tar -c -f $(NAME).tar *.pas *.pasinc makefile COPYING THANKS && \
-	bzip2 --compress --best $(NAME).tar
+	tar --to-stdout -c *.pas *.pasinc makefile COPYING THANKS | xz '--lzma2=dict=32MiB,lc=4,lp=0,pb=2,nice=273,mf=bt4,depth=32768' > $(NAME).tar.xz
 
 clean:
 	@rm -f *.o *.res *.a *.ppu ./bin/*

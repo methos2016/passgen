@@ -3,5 +3,6 @@ dicts: array[0..DICT_COUNT-1] of ^string =
    @pass_table_2,
    @pass_table_3,
    @pass_table_4,
-   @pass_table_5
+   @pass_table_5,
+   @pass_table_6
   );
