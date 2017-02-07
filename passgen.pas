@@ -7,7 +7,7 @@ program passgen;
    -------------------------------------------------------------------------------- *)
 
 uses
-  SysUtils;
+  SysUtils, math;
 
 type
   pstring = ^string;
@@ -24,7 +24,7 @@ const
   dl = sl+sl;
 
 const
-  PROGRAM_OPTIONS_COUNT = 6;
+  PROGRAM_OPTIONS_COUNT = 7;
   PROGRAM_NAME          = 'passgen';
   PROGRAM_TASK          = 'generate random passwords.';
   WORD_SEPARATOR        = {$I %WORD_SEPARATOR%};
@@ -110,6 +110,7 @@ begin
   Write('  --hex-to-word <hex_value> <dict_index>,      -h2w: Convert hexadecimal number to word(s).',sl);
   Write('  --word-to-hex <word1:word2...> <dict_index>, -w2h: Convert word(s) to hexadecimal number.',sl);
   Write('  --writing-mode                                 -p: Prints password character by character. Press ENTER to show next character.',sl);
+  Write('  --entropy <string>                             -e: Calculates real entropy of given password and rates it.',sl);
   halt(-1);
 end;
 
@@ -165,8 +166,116 @@ var
                                                                  (long:'--word'; short:'-w'; proc:nil; present:false),
                                                                  (long:'--hex-to-word'; short:'-h2w'; proc:nil; present:false),
                                                                  (long:'--word-to-hex'; short:'-w2h'; proc:nil; present:false),
-                                                                 (long:'--writing-mode'; short:'-p'; proc:nil; present:false)
+                                                                 (long:'--writing-mode'; short:'-p'; proc:nil; present:false),
+                                                                 (long:'--entropy'; short:'-e'; proc:nil; present:false)
                                                                );
+
+
+
+
+
+procedure entropy_get(password: string);
+// this procedure calculates real entropy of given password and rates it (0-6)
+const
+  OPINION_TEXT = 'This password is ';
+  OPINION_NOTE = 'Note: This opinion is valid only if the given password was randomly generated.';
+var
+  chars_in_password: array of char;
+  rate             : byte;
+  rating           : array[0..6] of string = ('VERY WEAK', 'WEAK', 'STILL WEAK', 'ALMOST STRONG', 'STRONG', 'VERY STRONG', 'INSANE');
+  bits             : array[0..6] of single = (0, 12, 32, 96, 128, 224, 384);
+  bits_password    : single;
+  unique           : boolean;
+  // loop
+  lpp0, lpp1: sizeuint;
+label
+  _rate;
+begin
+  if Length(password) <= 0 then
+  begin
+    rate := 0;
+
+    bits_password := 0;
+
+    goto _rate;
+  end;
+
+
+
+  // set first char, we know the given password will have at least 1 unique char
+  SetLength(chars_in_password, Length(chars_in_password)+1);
+
+  chars_in_password[Length(chars_in_password)-1] := password[lpp0+1];
+
+
+
+  // search for more chars
+  for lpp0 := 1 to Length(password)-1 do
+  begin
+    unique := true;
+
+
+    for lpp1 := 0 to Length(chars_in_password)-1 do
+    begin
+      // check for uniqueness...
+      if password[lpp0+1] = chars_in_password[lpp1] then
+      begin
+        unique := false;
+
+        break;
+      end;
+    end;
+
+
+    if unique then
+    begin
+      SetLength(chars_in_password, Length(chars_in_password)+1);
+
+      chars_in_password[Length(chars_in_password)-1] := password[lpp0+1];
+    end;
+  end;
+
+
+  // calculate entropy on given password
+  bits_password := log2(Length(chars_in_password)) * Length(password);
+
+
+  // rate it
+  for lpp0 := 0 to Length(rating)-1 do
+  begin
+    if lpp0 < 6 then
+    begin
+      if (bits_password >= bits[lpp0]) and (bits_password < bits[lpp0+1]) then
+      begin
+        rate := lpp0;
+
+        break;
+      end;
+    end
+  else
+    begin
+      if (bits_password >= bits[lpp0]) then
+      begin
+        rate := lpp0;
+
+        break;
+      end;
+    end;
+  end;
+
+
+_rate:
+  // give opinion on password and print its info
+  WriteLn(OPINION_TEXT+rating[rate]+'!',dl);
+
+  WriteLn('Password length : ',Length(password));
+  WriteLn('Password entropy: ',FloatToStrF(bits_password,ffFixed,9999,2),' bits.',dl);
+
+  WriteLn(OPINION_NOTE);
+
+
+  halt(0);
+end;
 
 
 
@@ -431,6 +540,8 @@ begin
 
 
   get_options(options);
+
+  if options[6].present then entropy_get(ParamStr(2));
 
   if options[0].present then options[0].proc;
 

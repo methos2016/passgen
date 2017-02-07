@@ -35,7 +35,7 @@ install:
 	cp ./bin/$(BIN) /usr/local/bin
 
 source:
-	tar --to-stdout -c *.pas *.pasinc makefile COPYING THANKS | xz '--lzma2=dict=32MiB,lc=4,lp=0,pb=2,nice=273,mf=bt4,depth=32768' > $(NAME).tar.xz
+	@tar --to-stdout -c *.pas *.pasinc makefile COPYING THANKS | xz '--lzma2=dict=32MiB,lc=4,lp=0,pb=2,nice=273,mf=bt4,depth=32768' > $(NAME).tar.xz
 
 clean:
 	@rm -f *.o *.res *.a *.ppu ./bin/*
