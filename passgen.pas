@@ -457,9 +457,63 @@ end;
 
 
 
-procedure generate_password_from_table(table: pstring; maxindex: sizeint; table_length: sizeint);
+procedure generate_password_from_table(const table: pstring; const maxindex: sizeint; const table_length: sizeint);
 // "limit" is mask to limit table index size, if a table only holds 1 byte "limit" must be $00FF...
 // for this reason TABLE_SIZE must be bit aligned
+
+  procedure nested_randomize_table();
+  var
+    chosen          : integer;
+    count           : integer;
+    temp_array      : array of string;
+    lpp0, lpp1, a   : integer;
+  begin
+    count := table_length;
+
+    SetLength(temp_array, table_length);
+
+
+    for lpp0 := 0 to table_length-1 do
+      temp_array[lpp0] := table[lpp0];
+
+
+    // randomize character table
+    for lpp0 := 0 to table_length-1 do
+    begin
+      // gets a random number from 0 to count-1
+      chosen := Random(count);
+
+      table[lpp0] := temp_array[chosen];
+
+      // exclude chosen item from "temp_array"
+      temp_array[chosen] := '';
+
+
+      // copy all array but avoid chosen item, so it can't be chosen again
+      lpp1 := 0;
+      a    := 0;
+
+      repeat
+        if temp_array[lpp1+a] <> '' then
+        begin
+          temp_array[lpp1] := temp_array[lpp1+a];
+
+          inc(lpp1);
+        end
+      else
+        begin
+          inc(a);
+        end;
+      until lpp1 = count-1;
+
+
+      dec(count);
+    end;
+
+
+    SetLength(temp_array, 0);
+  end;
+
 var
   lpp0    : sizeint;
   passlen : sizeint; // length of password
@@ -467,6 +521,8 @@ var
   union   : string;  // word separator
   limit   : word;    // maximum possible array index bit mask, must be "bit aligned" (e.g.: %00001111, %00000011, %00111111, %11111111)
 begin
+  nested_randomize_table();
+
   passlen  := StrToInt(ParamStr(1));
 
   password := '';

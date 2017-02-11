@@ -7,7 +7,7 @@ RELEASE2=-Mobjfpc -l -B -O3 -OwAll -Fw./bin/bm1NAKQStWvrNaqS.feedback -Sih -view
 DEBUG=-dDEBUG -Mobjfpc -l -O- -Sih -viewnh -Fu/usr/local/include/* -XMmain -Xs- -XS -XX -CX -g
 # program settings
 LOCAL_DATE=$(shell date +'%Y/%m/%d - %H:%M:%S %Z')
-SOURCE_HASH=$(shell sha256sum $(NAME).pas | grep -o '^[0-9a-fA-F]*')
+SOURCE_HASH=$(shell cat *.pas *.pasinc | sha256sum | grep -o '^[0-9a-fA-F]*')
 WORD_SEPARATOR=$(shell echo ' ')
 
 export LOCAL_DATE
@@ -31,6 +31,7 @@ rundbg:
 	@./bin/$(BIN)_dbg
 
 install:
+	@bash -c "if [ $$USER != 'root' ]; then echo -e 'Must be run as root.\n'; exit 1; fi"
 	chmod a+x ./bin/$(BIN)
 	cp ./bin/$(BIN) /usr/local/bin
 
