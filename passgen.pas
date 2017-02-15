@@ -20,8 +20,11 @@ type
                 end;
 
 const
-  sl = #10;
-  dl = sl+sl;
+  sl     = #10;
+  dl     = sl+sl;
+  stdin  = 0;
+  stdout = 1;
+  stderr = 2;
 
 const
   PROGRAM_OPTIONS_COUNT = 7;
@@ -45,7 +48,7 @@ var
   work_dir    : string;
   pcount      : sizeint;
   array0_count: sizeint;
-  array0      : array of string;
+  array0      : packed array of string;
   quiet       : boolean = false;
 
 
@@ -104,6 +107,15 @@ begin
   Write('  ',exe_name,' <password_length> <dictionary_id> [extra_options]',sl);
   Write('    Example: ',exe_name,' 16 3 -q',dl);
 
+  Write('Generate a random password of variable length:',sl);
+  Write('  ',exe_name,' <minimum_length>-<maximum_length> <dictionary_id> [extra_options]',sl);
+  Write('    Example: ',exe_name,' 15-25 3 -q',dl);
+
+  Write('Generate a random password from a custom dictionary:',sl);
+  Write('  ',exe_name,' <password_length> 0 [extra_options] < <input_file_from_stdin>',sl);
+  Write('    Example: ',exe_name,' 16 0 -q < /etc/chars.txt',dl);
+  Write('  Note: Input data must be UTF-8 encoded and each character/word must be separated by a new line',dl);
+
   Write('Additional options:',sl);
   Write('  --quiet,                                       -q: Keeps output to a minimum. Only show generated password.',sl);
   Write('  --word,                                        -w: It is a word dictionary, separate each word with a space.',sl);
@@ -123,6 +135,51 @@ begin
   WriteLn(message);
 
   halt(-1);
+end;
+
+
+
+
+
+procedure print_unique(const list: pstring; const count: sizeuint);
+// print unique characters for given list
+var
+  lpp0, lpp1: sizeuint;
+  temp      : array of string;
+  unique    : boolean;
+begin
+  if count < 1 then exit;
+
+  SetLength(temp, 1);
+
+  temp[0] := list[0];
+
+
+  for lpp0 := 0 to count-1 do
+  begin
+    unique := true;
+
+
+    // check if we already have it...
+    for lpp1 := 0 to Length(temp)-1 do
+    begin
+      if list[lpp0] = temp[lpp1] then unique := false;
+    end;
+
+
+    if unique then
+    begin
+      SetLength(temp, Length(temp)+1);
+
+      temp[Length(temp)-1] := list[lpp0];
+    end;
+  end;
+
+
+  for lpp0 := 0 to Length(temp)-1 do WriteLn(temp[lpp0]);
+
+
+  SetLength(temp, 0);
 end;
 
 
@@ -457,16 +514,16 @@ end;
 
 
 
-procedure generate_password_from_table(const table: pstring; const maxindex: sizeint; const table_length: sizeint);
+procedure generate_password_from_table(table: pstring; const maxindex: sizeint; table_length: sizeint);
 // "limit" is mask to limit table index size, if a table only holds 1 byte "limit" must be $00FF...
-// for this reason TABLE_SIZE must be bit aligned
+// for this reason TABLE_SIZE must be bit aligned (or power of two-1)
 
   procedure nested_randomize_table();
   var
-    chosen          : integer;
-    count           : integer;
-    temp_array      : array of string;
-    lpp0, lpp1, a   : integer;
+    chosen       : integer;
+    count        : integer;
+    temp_array   : array of string;
+    lpp0, lpp1, a: integer;
   begin
     count := table_length;
 
@@ -519,11 +576,75 @@ var
   passlen : sizeint; // length of password
   password: string;  // the password generated
   union   : string;  // word separator
-  limit   : word;    // maximum possible array index bit mask, must be "bit aligned" (e.g.: %00001111, %00000011, %00111111, %11111111)
+  limit   : word;    // maximum possible array index bit mask, must be "bit aligned" (or power of two-1) (e.g.: %00001111, %00000011, %00111111, %11111111)
+  min, max: integer; // minimum/maximum password length, if specified 'x-x'
+  temp    : string;
+  ctable  : packed array of string; // used for custom table, if dict_id is 0
 begin
+  if not Assigned(table) then
+  begin
+    // load dictionary from stdin
+    repeat
+      ReadLn(temp);
+
+
+      if temp <> '' then
+      begin
+        SetLength(ctable, Length(ctable)+1);
+
+        ctable[Length(ctable)-1] := temp;
+      end;
+    until eof(Input);
+
+
+    if frac(log2(Length(ctable))) <> 0 then fatal_error('Character/word list is not a power of 2.');
+
+    table := @ctable[0];
+
+    table_length := Length(ctable);
+  end;
+
+
   nested_randomize_table();
 
-  passlen  := StrToInt(ParamStr(1));
+
+  try
+    passlen := StrToInt(ParamStr(1));
+  except
+    // min-max length password
+    lpp0 := 1;
+
+    temp := '';
+
+
+    repeat
+      temp := temp+ParamStr(1)[lpp0];
+
+      inc(lpp0);
+    until (ParamStr(1)[lpp0] = '-') or (lpp0 > Length(ParamStr(1)));
+
+
+    min := StrToInt(temp);
+
+    if min < 1 then fatal_error('Minimum length is 1.');
+
+    inc(lpp0);
+
+    temp := '';
+
+
+    repeat
+      temp := temp+ParamStr(1)[lpp0];
+
+      inc(lpp0);
+    until lpp0 > Length(ParamStr(1));
+
+
+    max := StrToInt(temp);
+
+    passlen := min + Random(max-min+1);
+  end;
+
 
   password := '';
 
@@ -656,6 +777,7 @@ else
 
 
   case StrToInt(ParamStr(2)) of
+    0: generate_password_from_table(nil, (RANDOM_DATA_SIZE div 2), 1024);
     1: generate_password_from_table(@pass_table_1, (RANDOM_DATA_SIZE div 2), TABLE_1_SIZE);
     2: generate_password_from_table(@pass_table_2, (RANDOM_DATA_SIZE div 2), TABLE_2_SIZE);
     3: generate_password_from_table(@pass_table_3, (RANDOM_DATA_SIZE div 2), TABLE_3_SIZE);
