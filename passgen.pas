@@ -98,6 +98,10 @@ begin
   Write('SHA256: ',{$I %SOURCE_HASH%},dl);
 end;
 
+
+
+
+
 procedure show_help();
 begin
   show_header();
@@ -579,6 +583,7 @@ var
   limit   : word;    // maximum possible array index bit mask, must be "bit aligned" (or power of two-1) (e.g.: %00001111, %00000011, %00111111, %11111111)
   min, max: integer; // minimum/maximum password length, if specified 'x-x'
   temp    : string;
+  padlen  : qword;
   ctable  : packed array of string; // used for custom table, if dict_id is 0
 begin
   if not Assigned(table) then
@@ -597,11 +602,38 @@ begin
     until eof(Input);
 
 
-    if frac(log2(Length(ctable))) <> 0 then fatal_error('Character/word list is not a power of 2.');
+    padlen := Length(ctable);
 
-    table := @ctable[0];
 
+    if (frac(log2(Length(ctable))) <> 0) or (log2(Length(ctable)) < 1) then
+    begin
+      // pad dictionary/word or char list to nearest power of two
+      padlen := %0100000000000000000000000000000000000000000000000000000000000000;
+
+      for lpp0 := (sizeof(padlen) * 8)-2 downto 0 do
+      begin
+        if (Length(ctable) and padlen) > 0 then
+        begin
+          padlen := padlen shl 1;
+
+          break;
+        end else padlen := padlen shr 1;
+      end;
+    end;
+
+
+    // save old, unpadded length
     table_length := Length(ctable);
+    // update new padded table length
+    SetLength(ctable, padlen);
+    // pad table by repeating existing characters
+    for lpp0 := 0 to padlen-table_length-1 do
+      ctable[table_length+lpp0] := ctable[lpp0];
+
+
+    table := pstring(ctable);
+
+    table_length := padlen; // new padded length
   end;
 
 
@@ -777,7 +809,7 @@ else
 
 
   case StrToInt(ParamStr(2)) of
-    0: generate_password_from_table(nil, (RANDOM_DATA_SIZE div 2), 1024);
+    0: generate_password_from_table(nil, (RANDOM_DATA_SIZE div 2), 0);
     1: generate_password_from_table(@pass_table_1, (RANDOM_DATA_SIZE div 2), TABLE_1_SIZE);
     2: generate_password_from_table(@pass_table_2, (RANDOM_DATA_SIZE div 2), TABLE_2_SIZE);
     3: generate_password_from_table(@pass_table_3, (RANDOM_DATA_SIZE div 2), TABLE_3_SIZE);
