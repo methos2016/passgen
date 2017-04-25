@@ -192,11 +192,16 @@ end;
 
 procedure seq();
 var
-  lpp0: sizeint;
+  lpp0: integer;
+  text: string;
 begin
   // generate sequence of chars
-  for lpp0 := $20 to $7E do
-    Write(char(lpp0));
+  text := '';
+
+  for lpp0 := StrToInt(ParamStr(1)) to StrToInt(ParamStr(2)) do
+    text := text+char(lpp0);
+
+  WriteLn(text);
 
   halt(0);
 end;
